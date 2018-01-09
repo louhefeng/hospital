@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans" 
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:context="http://www.springframework.org/schema/context"
+    xmlns:util="http://www.springframework.org/schema/util"
+    xmlns:tx="http://www.springframework.org/schema/tx"
+    xmlns:mvc="http://www.springframework.org/schema/mvc"
+    xmlns:aop="http://www.springframework.org/schema/aop"
+    xsi:schemaLocation="http://www.springframework.org/schema/aop
+      classpath:/org/springframework/aop/config/spring-aop-3.1.xsd
+        http://www.springframework.org/schema/beans 
+        classpath:/org/springframework/beans/factory/xml/spring-beans-3.1.xsd
+        http://www.springframework.org/schema/context 
+       classpath:/org/springframework/context/config/spring-context-3.1.xsd
+        http://www.springframework.org/schema/tx 
+       classpath:/org/springframework/transaction/config/spring-tx-3.1.xsd
+       http://www.springframework.org/schema/mvc http://www.springframework.org/schema/mvc/spring-mvc.xsd"
+default-lazy-init="false">
+
+	<!--启用spring的一些annotation -->
+	<context:annotation-config />
+
+	<!-- 自动扫描com.test.controller包，使SpringMVC认为包下用了@controller注解的类是控制器 -->
+	<context:component-scan base-package="com">
+	</context:component-scan>
+	<mvc:annotation-driven />
+
+
+	<bean id="dataSource" class="com.mchange.v2.c3p0.ComboPooledDataSource"
+		destroy-method="close">
+		<property name="driverClass" value="com.mysql.jdbc.Driver" />
+		<property name="jdbcUrl"
+			value="jdbc:mysql://127.0.0.1:3306/hospitalprivate?useUnicode=true" />
+		<property name="user" value="root" />
+		<property name="password" value="root" />
+		<!--连接池中保留的最大连接数。默认值: 15 -->
+		<property name="maxPoolSize" value="20" />
+		<!-- 连接池中保留的最小连接数，默认为：3 -->
+		<property name="minPoolSize" value="2" />
+		<!-- 初始化连接池中的连接数，取值应在minPoolSize与maxPoolSize之间，默认为3 -->
+		<property name="initialPoolSize" value="2" />
+		<!--最大空闲时间，60秒内未使用则连接被丢弃。若为0则永不丢弃。默认值: 0 -->
+		<property name="maxIdleTime" value="60" />
+		<!--当连接池中的连接耗尽的时候c3p0一次同时获取的连接数。默认值: 3 -->
+		<property name="acquireIncrement" value="2" />
+		<!--定义在从数据库获取新连接失败后重复尝试的次数。默认值: 30 ；小于等于0表示无限次 -->
+		<property name="acquireRetryAttempts" value="0" />
+		<!--重新尝试的时间间隔，默认为：1000毫秒 -->
+		<property name="acquireRetryDelay" value="1000" />
+		<!--如果为false，则获取连接失败将会引起所有等待连接池来获取连接的线程抛出异常，但是数据源仍有效保留，并在下我次调用getConnection()的时候继续尝试获取连接。如果设为true，那么在尝试获取连接失败后该数据源将申明已断开并永久关闭。默认: 
+			false -->
+		<property name="breakAfterAcquireFailure" value="false" />
+	</bean>
+
+
+	<bean id="sessionFactory"
+		class="org.springframework.orm.hibernate4.LocalSessionFactoryBean">
+		<property name="dataSource" ref="dataSource" />
+		<property name="hibernateProperties">
+			<props>
+				<prop key="hibernate.dialect">org.hibernate.dialect.MySQLDialect</prop>
+				<prop key="hibernate.hbm2ddl.auto">update</prop>
+				<prop key="show_sql">true</prop>
+				<prop key="hibernate.jdbc.batch_size">20</prop>
+			</props>
+		</property>
+		<property name="packagesToScan">
+			<list>
+				<value>com.hospi.model</value>
+			</list>
+		</property>
+	</bean>
+	
+	
+	<bean id="transactionManager"
+		class="org.springframework.orm.hibernate4.HibernateTransactionManager">
+		<property name="sessionFactory" ref="sessionFactory" />
+	</bean>
+
+
+
+<tx:annotation-driven transaction-manager="transactionManager"/>  
+ <!-- 
+  REQUIRED：支持当前事务，如果当前没有事务，就新建一个事务。这是最常见的选择。 
+    SUPPORTS：支持当前事务，如果当前没有事务，就以非事务方式执行。 
+    MANDATORY：支持当前事务，如果当前没有事务，就抛出异常。 
+    REQUIRES_NEW：新建事务，如果当前存在事务，把当前事务挂起。 
+    NOT_SUPPORTED：以非事务方式执行操作，如果当前存在事务，就把当前事务挂起。 
+    NEVER：以非事务方式执行，如果当前存在事务，则抛出异常。 
+    NESTED：支持当前事务，如果当前事务存在，则执行一个嵌套事务，如果当前没有事务，就新建一个事务。 
+   -->
+	<tx:advice id="txAdvice" transaction-manager="transactionManager">
+		<tx:attributes>
+			<tx:method name="add*" propagation="REQUIRED"/>
+			<tx:method name="delete*" propagation="REQUIRED" />
+            <tx:method name="update*" propagation="REQUIRED" />
+            <tx:method name="save*" propagation="REQUIRED" />
+             <tx:method name="find*" propagation="REQUIRED" />
+             <tx:method name="search*" propagation="REQUIRED" />
+		</tx:attributes>
+	</tx:advice>           
+  	<aop:config>
+        <aop:advisor pointcut="execution(* com.hospi.server.*.*(..))" advice-ref="txAdvice" />
+ 	</aop:config>
+
+
+
+<mvc:resources location="/images/" mapping="/images/**"/> 
+<mvc:resources location="/css/" mapping="/css/**"/> 
+<mvc:resources location="/js/" mapping="/js/**"/>
+
+
+	<bean id="defaultViewResolver"
+		class="org.springframework.web.servlet.view.InternalResourceViewResolver">
+		<property name="viewClass"
+			value="org.springframework.web.servlet.view.JstlView" />
+		<property name="prefix" value="/WEB-INF/" /><!--设置JSP文件的目录位置 -->
+		<property name="suffix" value=".jsp" />
+	</bean>
+
+
+	<!-- 使用jackjson,默认将返回对象转换为 JSON，如果前面没有在pom文件中添加jackson包的不需要这个配置 -->
+	<bean id="stringConverter"
+		class="org.springframework.http.converter.StringHttpMessageConverter">
+		<property name="supportedMediaTypes">
+			<list>
+				<value>text/plain;charset=UTF-8</value>
+			</list>
+		</property>
+	</bean>
+	<bean id="jsonConverter"
+		class="org.springframework.http.converter.json.MappingJackson2HttpMessageConverter"></bean>
+	<bean
+		class="org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter">
+		<property name="messageConverters">
+			<list>
+				<ref bean="stringConverter" />
+				<ref bean="jsonConverter" />
+			</list>
+		</property>
+	</bean>
+
+</beans> 
